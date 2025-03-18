@@ -1,5 +1,8 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Link } from "react-router-dom";
+import { PlusCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const Templates = () => {
   // Placeholder data for templates
@@ -13,9 +16,15 @@ const Templates = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Message Templates</h1>
+        <Link to="/templates/new">
+          <Button className="flex items-center gap-1">
+            <PlusCircle className="h-4 w-4" />
+            Create Template
+          </Button>
+        </Link>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="templates-grid">
         {templates.map((template) => (
           <Card key={template.id}>
             <CardHeader>
@@ -24,10 +33,10 @@ const Templates = () => {
             </CardHeader>
             <CardContent>
               <div className="flex justify-end space-x-2">
-                <span className={`px-2 py-1 text-sm rounded ${
-                  template.status === 'Approved' ? 'bg-green-100 text-green-800' :
-                  template.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
-                  'bg-blue-100 text-blue-800'
+                <span className={`status-badge ${
+                  template.status === 'Approved' ? 'status-approved' : 
+                  template.status === 'Pending' ? 'status-pending' : 
+                  'status-review'
                 }`}>
                   {template.status}
                 </span>

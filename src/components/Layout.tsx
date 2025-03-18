@@ -7,9 +7,9 @@ import Navigation from './Navigation';
 const Layout = () => {
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-gray-50">
+      <div className="main-layout">
         <Navigation />
-        <main className="flex-1 p-8 overflow-auto">
+        <main className="main-content">
           <Outlet />
         </main>
       </div>
