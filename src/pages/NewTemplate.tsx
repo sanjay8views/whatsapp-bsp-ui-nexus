@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -48,8 +47,15 @@ const NewTemplate = () => {
       placeholder: "",
       example: ""
     };
+    
+    const nextVarNumber = template.variables.length + 1;
+    const placeholder = `{{${nextVarNumber}}}`;
+    
+    const updatedBody = template.body + (template.body ? " " : "") + placeholder;
+    
     setTemplate(prev => ({
       ...prev,
+      body: updatedBody,
       variables: [...prev.variables, newVariable]
     }));
   };
@@ -64,9 +70,29 @@ const NewTemplate = () => {
   };
 
   const removeVariable = (id: string) => {
+    const variableIndex = template.variables.findIndex(v => v.id === id);
+    if (variableIndex === -1) return;
+    
+    const placeholder = `{{${variableIndex + 1}}}`;
+    
+    const updatedBody = template.body.replace(placeholder, "");
+    
+    const updatedVariables = template.variables.filter(v => v.id !== id);
+    
+    let finalBody = updatedBody;
+    updatedVariables.forEach((v, newIndex) => {
+      const oldIndex = template.variables.findIndex(oldVar => oldVar.id === v.id);
+      if (oldIndex !== newIndex) {
+        const oldPlaceholder = `{{${oldIndex + 1}}}`;
+        const newPlaceholder = `{{${newIndex + 1}}}`;
+        finalBody = finalBody.replace(new RegExp(oldPlaceholder, 'g'), newPlaceholder);
+      }
+    });
+    
     setTemplate(prev => ({
       ...prev,
-      variables: prev.variables.filter(v => v.id !== id)
+      body: finalBody,
+      variables: updatedVariables
     }));
   };
 
@@ -94,7 +120,6 @@ const NewTemplate = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Format template for Meta API
     const formattedTemplate = {
       name: template.name,
       language: template.language,
@@ -120,7 +145,6 @@ const NewTemplate = () => {
     console.log("Template data:", formattedTemplate);
   };
 
-  // Helper function to replace variables in preview
   const replaceVariables = (text: string) => {
     if (!text) return "";
     
@@ -211,6 +235,9 @@ const NewTemplate = () => {
                   onChange={handleChange}
                   required
                 />
+                <p className="text-xs text-muted-foreground">
+                  Add variables to make your template dynamic. Variables will be inserted into the body.
+                </p>
               </div>
 
               <div className="space-y-2">
@@ -374,7 +401,6 @@ const NewTemplate = () => {
           </CardHeader>
           <CardContent>
             <div className="border rounded-lg p-4 space-y-4 bg-gray-50">
-              {/* WhatsApp-style template preview */}
               <div className="max-w-sm mx-auto">
                 {template.header && (
                   <div className="font-semibold mb-2 text-gray-800">
@@ -433,3 +459,4 @@ const NewTemplate = () => {
 };
 
 export default NewTemplate;
+
