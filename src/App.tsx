@@ -10,6 +10,8 @@ import Index from "./pages/Index";
 import Chat from "./pages/Chat";
 import Templates from "./pages/Templates";
 import NewTemplate from "./pages/NewTemplate";
+import Integrations from "./pages/Integrations";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -27,6 +29,8 @@ const App = () => (
             <Route path="chat" element={<Chat />} />
             <Route path="templates" element={<Templates />} />
             <Route path="templates/new" element={<NewTemplate />} />
+            <Route path="integrations" element={<Integrations />} />
+            <Route path="settings" element={<Settings />} />
             <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>
