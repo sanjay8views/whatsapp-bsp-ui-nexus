@@ -232,7 +232,7 @@ const NewTemplate = () => {
                     {template.variables.map((variable, index) => (
                       <div key={variable.id} className="grid grid-cols-[1fr_1fr_auto] gap-2 items-center">
                         <div>
-                          <Label className="text-xs mb-1 block">Variable {{index + 1}}</Label>
+                          <Label className="text-xs mb-1 block">Variable {`{{${index + 1}}}`}</Label>
                           <Input
                             placeholder="Placeholder description"
                             value={variable.placeholder}
@@ -417,7 +417,7 @@ const NewTemplate = () => {
                     <div className="text-xs font-medium text-gray-600 mb-1">Variables in this template:</div>
                     {template.variables.map((variable, index) => (
                       <div key={variable.id} className="text-xs text-gray-500">
-                        {{index + 1}}: {variable.placeholder || "No description"} 
+                        {`{{${index + 1}}}`}: {variable.placeholder || "No description"} 
                         {variable.example && ` (Example: ${variable.example})`}
                       </div>
                     ))}
