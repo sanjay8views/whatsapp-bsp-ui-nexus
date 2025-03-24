@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -151,7 +152,7 @@ const NewTemplate = () => {
     let result = text;
     template.variables.forEach((variable, index) => {
       const placeholder = `{{${index + 1}}}`;
-      const replacement = variable.example ? variable.example : placeholder;
+      const replacement = variable.example || placeholder;
       result = result.replace(new RegExp(placeholder, 'g'), replacement);
     });
     
@@ -459,4 +460,3 @@ const NewTemplate = () => {
 };
 
 export default NewTemplate;
-
