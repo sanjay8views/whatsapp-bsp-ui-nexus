@@ -9,25 +9,37 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ExclamationTriangleIcon } from "@radix-ui/react-icons";
 
-const Login = () => {
+const Signup = () => {
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
-  const { login, isLoading } = useAuth();
+  const { signup, isLoading } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     
-    if (!email || !password) {
-      setError("Email and password are required");
+    if (!name || !email || !password) {
+      setError("All fields are required");
+      return;
+    }
+    
+    if (password !== confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+    
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters");
       return;
     }
     
     try {
-      await login(email, password);
+      await signup(name, email, password);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to login");
+      setError(err instanceof Error ? err.message : "Failed to create account");
     }
   };
 
@@ -35,8 +47,8 @@ const Login = () => {
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <Card className="w-[400px]">
         <CardHeader>
-          <CardTitle>Welcome Back</CardTitle>
-          <CardDescription>Sign in to your WhatsApp BSP account</CardDescription>
+          <CardTitle>Create an Account</CardTitle>
+          <CardDescription>Sign up for WhatsApp BSP</CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
@@ -46,6 +58,18 @@ const Login = () => {
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
+            
+            <div className="space-y-2">
+              <Label htmlFor="name">Name</Label>
+              <Input
+                id="name"
+                type="text"
+                placeholder="Enter your full name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+              />
+            </div>
             
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
@@ -58,14 +82,27 @@ const Login = () => {
                 required
               />
             </div>
+            
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
                 type="password"
-                placeholder="Enter your password"
+                placeholder="Create a password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                placeholder="Confirm your password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
                 required
               />
             </div>
@@ -76,12 +113,12 @@ const Login = () => {
               className="w-full bg-whatsapp-primary hover:bg-whatsapp-secondary"
               disabled={isLoading}
             >
-              {isLoading ? "Signing in..." : "Sign In"}
+              {isLoading ? "Creating Account..." : "Create Account"}
             </Button>
             <p className="text-sm text-center mt-2">
-              Don't have an account?{" "}
-              <Link to="/signup" className="text-whatsapp-primary hover:underline">
-                Sign up
+              Already have an account?{" "}
+              <Link to="/login" className="text-whatsapp-primary hover:underline">
+                Sign in
               </Link>
             </p>
           </CardFooter>
@@ -91,4 +128,4 @@ const Login = () => {
   );
 };
 
-export default Login;
+export default Signup;
