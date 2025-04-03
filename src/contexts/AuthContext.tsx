@@ -27,7 +27,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     // Check if user is already logged in (from localStorage)
     const storedUser = localStorage.getItem("user");
-    if (storedUser) {
+    const token = localStorage.getItem("token");
+    
+    if (storedUser && token) {
       setUser(JSON.parse(storedUser));
     }
     setIsLoading(false);
@@ -36,23 +38,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      // In a real application, this would be an API call to your backend
-      // For demo purposes, we'll simulate an API call
+      // Call the actual login API
+      const response = await fetch('https://testw-ndlu.onrender.com/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
       
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const data = await response.json();
       
-      // This is where you would normally send a request to your backend API
-      // const response = await fetch('/api/login', { 
-      //   method: 'POST', 
-      //   body: JSON.stringify({ email, password }),
-      //   headers: { 'Content-Type': 'application/json' }
-      // });
-      // const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || 'Login failed');
+      }
       
-      // For demo, we'll just create a mock user
+      // Save token to localStorage
+      localStorage.setItem("token", data.token);
+      
+      // Create user object from token (in a real app, you might want to decode the JWT)
       const mockUser = {
-        id: "1",
+        id: "1", // In a real app, you would extract this from the JWT token
         name: email.split('@')[0],
         email
       };
@@ -63,7 +69,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       navigate("/");
     } catch (error) {
       console.error("Login failed:", error);
-      throw new Error("Invalid email or password");
+      throw error;
     } finally {
       setIsLoading(false);
     }
@@ -72,34 +78,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signup = async (name: string, email: string, password: string) => {
     setIsLoading(true);
     try {
-      // In a real application, this would be an API call to your backend
-      // For demo purposes, we'll simulate an API call
+      // Call the actual signup API
+      const response = await fetch('https://testw-ndlu.onrender.com/api/auth/signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name, email, password }),
+      });
       
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const data = await response.json();
       
-      // This is where you would normally send a request to your backend API
-      // const response = await fetch('/api/signup', { 
-      //   method: 'POST', 
-      //   body: JSON.stringify({ name, email, password }),
-      //   headers: { 'Content-Type': 'application/json' }
-      // });
-      // const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || 'Signup failed');
+      }
       
-      // For demo, we'll create a mock user
-      const mockUser = {
-        id: "1",
-        name,
-        email
-      };
-      
-      // Save user to localStorage
-      localStorage.setItem("user", JSON.stringify(mockUser));
-      setUser(mockUser);
-      navigate("/");
+      // After successful signup, log the user in
+      await login(email, password);
     } catch (error) {
       console.error("Signup failed:", error);
-      throw new Error("Failed to create account");
+      throw error;
     } finally {
       setIsLoading(false);
     }
@@ -107,6 +105,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = () => {
     localStorage.removeItem("user");
+    localStorage.removeItem("token");
     setUser(null);
     navigate("/login");
   };
