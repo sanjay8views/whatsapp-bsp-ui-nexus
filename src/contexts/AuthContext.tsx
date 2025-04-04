@@ -38,6 +38,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
+      console.log("Attempting login with:", { email });
+      
       // Call the actual login API
       const response = await fetch('https://testw-ndlu.onrender.com/api/auth/login', {
         method: 'POST',
@@ -48,6 +50,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       
       const data = await response.json();
+      console.log("Login response:", data);
       
       if (!response.ok) {
         throw new Error(data.message || 'Login failed');
@@ -78,6 +81,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signup = async (name: string, email: string, password: string) => {
     setIsLoading(true);
     try {
+      console.log("Attempting signup with:", { name, email });
+      
       // Call the actual signup API
       const response = await fetch('https://testw-ndlu.onrender.com/api/auth/signup', {
         method: 'POST',
@@ -88,11 +93,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       
       const data = await response.json();
+      console.log("Signup response:", data);
       
       if (!response.ok) {
         throw new Error(data.message || 'Signup failed');
       }
       
+      console.log("Signup successful, attempting login...");
       // After successful signup, log the user in
       await login(email, password);
     } catch (error) {
