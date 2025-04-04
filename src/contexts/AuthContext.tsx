@@ -56,19 +56,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error(data.message || 'Login failed');
       }
       
+      if (!data.token) {
+        throw new Error('Authentication failed - no token received');
+      }
+      
       // Save token to localStorage
       localStorage.setItem("token", data.token);
       
-      // Create user object from token (in a real app, you might want to decode the JWT)
-      const mockUser = {
-        id: "1", // In a real app, you would extract this from the JWT token
-        name: email.split('@')[0],
+      // Create user object from token data
+      // In a real app, you might want to decode the JWT to get user info
+      const userData = {
+        id: "1", // This would normally come from the token
+        name: email.split('@')[0], // Simple way to extract a name
         email
       };
       
       // Save user to localStorage
-      localStorage.setItem("user", JSON.stringify(mockUser));
-      setUser(mockUser);
+      localStorage.setItem("user", JSON.stringify(userData));
+      setUser(userData);
       navigate("/");
     } catch (error) {
       console.error("Login failed:", error);
