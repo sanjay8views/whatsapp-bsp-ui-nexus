@@ -15,6 +15,7 @@ import NewTemplate from "./pages/NewTemplate";
 import Integrations from "./pages/Integrations";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
+import FacebookCallback from "./pages/FacebookCallback";
 
 const queryClient = new QueryClient();
 
@@ -39,6 +40,7 @@ const AppRoutes = () => (
   <Routes>
     <Route path="/login" element={<Login />} />
     <Route path="/signup" element={<Signup />} />
+    <Route path="/facebook-callback" element={<FacebookCallback />} />
     <Route path="/" element={
       <ProtectedRoute>
         <Layout />
