@@ -1,15 +1,67 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Phone, Wifi, Facebook } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 
+interface DashboardData {
+  phone_number: string;
+  business_name: string;
+  connected: boolean;
+}
+
 const Index = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   const [isConnecting, setIsConnecting] = useState(false);
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch dashboard data when component mounts
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      setIsLoading(true);
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) {
+          throw new Error("No authentication token found");
+        }
+
+        const response = await fetch('https://testw-ndlu.onrender.com/api/dashboard', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch dashboard data: ${response.status}`);
+        }
+
+        const result = await response.json();
+        console.log("Dashboard data:", result);
+        
+        if (result.success && result.data) {
+          setDashboardData(result.data);
+        } else {
+          throw new Error("Invalid response format");
+        }
+      } catch (error) {
+        console.error("Error fetching dashboard data:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load dashboard data. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, [toast]);
 
   const connectToFacebook = () => {
     setIsConnecting(true);
@@ -88,6 +140,14 @@ const Index = () => {
       
       // In a real implementation, you would save the WABA ID, phone ID, and access token
       // received from your backend after it exchanges the code
+      
+      // Update our dashboard data to show as connected
+      if (dashboardData) {
+        setDashboardData({
+          ...dashboardData,
+          connected: true
+        });
+      }
     } catch (error) {
       console.error("Error connecting to Facebook:", error);
       toast({
@@ -97,6 +157,17 @@ const Index = () => {
       });
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-8">
+        <h1 className="text-3xl font-bold">Dashboard</h1>
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-whatsapp-primary"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -110,11 +181,13 @@ const Index = () => {
             </div>
             <div>
               <CardTitle>WhatsApp Number</CardTitle>
-              <CardDescription>Status: Active</CardDescription>
+              <CardDescription>
+                {dashboardData?.business_name || "Business Name"}
+              </CardDescription>
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-semibold">+1 234 567 8900</p>
+            <p className="text-2xl font-semibold">{dashboardData?.phone_number || "Not connected"}</p>
           </CardContent>
         </Card>
 
@@ -125,13 +198,19 @@ const Index = () => {
             </div>
             <div>
               <CardTitle>API Status</CardTitle>
-              <CardDescription>All systems operational</CardDescription>
+              <CardDescription>
+                {dashboardData?.connected 
+                  ? "All systems operational" 
+                  : "Not connected"}
+              </CardDescription>
             </div>
           </CardHeader>
           <CardContent>
             <div className="flex items-center space-x-2">
-              <div className="h-3 w-3 bg-green-500 rounded-full" />
-              <span className="text-sm text-gray-600">Connected</span>
+              <div className={`h-3 w-3 ${dashboardData?.connected ? 'bg-green-500' : 'bg-red-500'} rounded-full`} />
+              <span className="text-sm text-gray-600">
+                {dashboardData?.connected ? "Live" : "Not Connected"}
+              </span>
             </div>
           </CardContent>
         </Card>
@@ -149,11 +228,15 @@ const Index = () => {
           <CardContent>
             <Button 
               className="w-full" 
-              variant="outline"
-              disabled={isConnecting}
+              variant={dashboardData?.connected ? "secondary" : "outline"}
+              disabled={dashboardData?.connected || isConnecting}
               onClick={connectToFacebook}
             >
-              {isConnecting ? "Connecting..." : "Connect to Facebook"}
+              {isConnecting 
+                ? "Connecting..." 
+                : dashboardData?.connected 
+                  ? "Connected" 
+                  : "Connect to Facebook"}
             </Button>
           </CardContent>
         </Card>
