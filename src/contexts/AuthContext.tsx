@@ -24,15 +24,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
+  // Check token expiration
+  const isTokenExpired = (token: string) => {
+    try {
+      const payloadBase64 = token.split('.')[1];
+      const payload = JSON.parse(atob(payloadBase64));
+      const expiry = payload.exp * 1000; // Convert seconds to milliseconds
+      return Date.now() >= expiry;
+    } catch (e) {
+      return true; // If any error occurs during parsing, consider the token expired
+    }
+  };
+
   useEffect(() => {
     // Check if user is already logged in (from localStorage)
     const storedUser = localStorage.getItem("user");
     const token = localStorage.getItem("token");
     
     if (storedUser && token) {
-      setUser(JSON.parse(storedUser));
+      // Check if token is expired
+      if (isTokenExpired(token)) {
+        console.log("Token expired, logging out");
+        logout();
+      } else {
+        setUser(JSON.parse(storedUser));
+      }
     }
     setIsLoading(false);
+  }, []);
+
+  // Add periodic token check
+  useEffect(() => {
+    const checkTokenInterval = setInterval(() => {
+      const token = localStorage.getItem("token");
+      if (token && isTokenExpired(token)) {
+        console.log("Token expired during session, logging out");
+        logout();
+      }
+    }, 60000); // Check every minute
+    
+    return () => clearInterval(checkTokenInterval);
   }, []);
 
   const login = async (email: string, password: string) => {
