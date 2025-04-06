@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -7,12 +7,13 @@ import { Search, Send, Check, CheckCheck, Phone, User } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Conversation, Message } from "@/types/chat";
-import { initializeSocket, disconnectSocket } from "@/utils/socket";
+import { Conversation, Message, MessageSendResponse } from "@/types/chat";
+import { initializeSocket, disconnectSocket, getSocket } from "@/utils/socket";
 import { format } from "date-fns";
 
 // Function to fetch conversations
 const fetchConversations = async (): Promise<Conversation[]> => {
+  console.log("Fetching conversations...");
   const token = localStorage.getItem("token");
   if (!token) throw new Error("No authentication token found");
 
@@ -25,31 +26,57 @@ const fetchConversations = async (): Promise<Conversation[]> => {
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch conversations: ${response.status}`);
+    const errorText = await response.text();
+    console.error("Error fetching conversations:", response.status, errorText);
+    throw new Error(`Failed to fetch conversations: ${response.status} - ${errorText}`);
   }
 
-  return response.json();
+  const data = await response.json();
+  console.log("Conversations fetched:", data);
+  return data;
 };
 
 // Function to send a message
-const sendMessage = async ({ conversationId, content }: { conversationId: number; content: string }): Promise<Message> => {
+const sendMessage = async ({ 
+  conversationId, 
+  content 
+}: { 
+  conversationId: number; 
+  content: string 
+}): Promise<MessageSendResponse> => {
+  console.log(`Sending message to conversation ${conversationId}:`, content);
   const token = localStorage.getItem("token");
   if (!token) throw new Error("No authentication token found");
 
-  const response = await fetch(`https://testw-ndlu.onrender.com/api/conversations/${conversationId}/messages`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ content, message_type: "text" }),
-  });
+  try {
+    const response = await fetch(`https://testw-ndlu.onrender.com/api/conversations/${conversationId}/messages`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ content, message_type: "text" }),
+    });
 
-  if (!response.ok) {
-    throw new Error(`Failed to send message: ${response.status}`);
+    const data = await response.json();
+    
+    if (!response.ok) {
+      console.error("Error sending message:", response.status, data);
+      return { 
+        success: false, 
+        error: data.message || `Failed to send message: ${response.status}` 
+      };
+    }
+
+    console.log("Message sent successfully:", data);
+    return { success: true, data };
+  } catch (error) {
+    console.error("Exception while sending message:", error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : "Unknown error sending message" 
+    };
   }
-
-  return response.json();
 };
 
 // Component to render message status indicators
@@ -71,9 +98,15 @@ const Chat = () => {
   const queryClient = useQueryClient();
   const [messageInput, setMessageInput] = useState("");
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Fetch conversations data
-  const { data: conversations, isLoading, error } = useQuery({
+  const { 
+    data: conversations, 
+    isLoading, 
+    error,
+    refetch: refetchConversations
+  } = useQuery({
     queryKey: ["conversations"],
     queryFn: fetchConversations,
   });
@@ -81,11 +114,34 @@ const Chat = () => {
   // Send message mutation
   const sendMessageMutation = useMutation({
     mutationFn: sendMessage,
-    onSuccess: () => {
-      // Refetch conversations to update with the new message
-      queryClient.invalidateQueries({ queryKey: ["conversations"] });
+    onSuccess: (response) => {
+      if (response.success) {
+        console.log("Message sent successfully in mutation:", response.data);
+        // Refetch conversations to update with the new message
+        queryClient.invalidateQueries({ queryKey: ["conversations"] });
+        
+        // Optionally add the message to the UI immediately
+        if (selectedConversation && response.data) {
+          // This is a quick update before the refetch happens
+          const updatedConversation = {
+            ...selectedConversation,
+            messages: [...selectedConversation.messages, response.data],
+            last_message: response.data.content,
+            last_message_time: response.data.created_at
+          };
+          setSelectedConversation(updatedConversation);
+        }
+      } else {
+        console.error("Error in sendMessageMutation:", response.error);
+        toast({
+          title: "Error",
+          description: response.error || "Failed to send message",
+          variant: "destructive",
+        });
+      }
     },
     onError: (error) => {
+      console.error("Exception in sendMessageMutation:", error);
       toast({
         title: "Error",
         description: `Failed to send message: ${error instanceof Error ? error.message : "Unknown error"}`,
@@ -94,30 +150,63 @@ const Chat = () => {
     },
   });
 
+  // Scroll to bottom of messages when they update
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [selectedConversation?.messages]);
+
   // Set up socket connection for real-time updates
   useEffect(() => {
+    console.log("Setting up socket connection...");
+    
     const socket = initializeSocket({
       onNewMessage: (message) => {
-        console.log("Received new message:", message);
+        console.log("Socket received new WhatsApp message:", message);
         // Refetch conversation data when a new message comes in
-        queryClient.invalidateQueries({ queryKey: ["conversations"] });
+        refetchConversations();
       },
       onStatusUpdate: (status) => {
-        console.log("Message status updated:", status);
+        console.log("Socket received message status update:", status);
         // Refetch conversation data when a message status changes
-        queryClient.invalidateQueries({ queryKey: ["conversations"] });
+        refetchConversations();
       },
+      onCustomEvent: (data) => {
+        console.log("Socket received custom event data:", data);
+        // Handle any custom events from the server
+        refetchConversations();
+      }
     });
+
+    // Every 30 seconds, check if socket is still connected
+    const intervalId = setInterval(() => {
+      const currentSocket = getSocket();
+      console.log("Socket connection check:", {
+        exists: !!currentSocket,
+        connected: currentSocket?.connected,
+        id: currentSocket?.id
+      });
+      
+      if (currentSocket && !currentSocket.connected) {
+        console.log("Socket disconnected, attempting to reconnect...");
+        // Socket exists but not connected, attempt reconnect
+        currentSocket.connect();
+      }
+    }, 30000);
 
     // Clean up socket on unmount
     return () => {
+      console.log("Component unmounting, cleaning up socket connection...");
+      clearInterval(intervalId);
       disconnectSocket();
     };
-  }, [queryClient]);
+  }, [refetchConversations]);
 
   // Auto-select the first conversation when data loads
   useEffect(() => {
     if (conversations && conversations.length > 0 && !selectedConversation) {
+      console.log("Auto-selecting first conversation:", conversations[0].id);
       setSelectedConversation(conversations[0]);
     }
   }, [conversations, selectedConversation]);
@@ -125,6 +214,11 @@ const Chat = () => {
   // Function to handle sending a message
   const handleSendMessage = () => {
     if (!messageInput.trim() || !selectedConversation) return;
+    
+    console.log("Handling send message:", {
+      conversationId: selectedConversation.id,
+      content: messageInput
+    });
     
     sendMessageMutation.mutate({
       conversationId: selectedConversation.id,
@@ -255,6 +349,8 @@ const Chat = () => {
                 Select a conversation to start chatting
               </div>
             )}
+            {/* Empty div for scrolling to bottom */}
+            <div ref={messagesEndRef} />
           </div>
         </ScrollArea>
         

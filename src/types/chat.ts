@@ -19,3 +19,9 @@ export interface Conversation {
   updated_at: string;
   messages: Message[];
 }
+
+export interface MessageSendResponse {
+  success: boolean;
+  data?: Message;
+  error?: string;
+}
