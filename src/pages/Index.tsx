@@ -66,22 +66,28 @@ const Index = () => {
   const connectToFacebook = () => {
     setIsConnecting(true);
     
-    // Define the Facebook permissions we need
+    // Define the Facebook permissions we need - using the exact permissions you provided
     const permissions = [
-      'pages_messaging', 
-      'pages_show_list', 
-      'pages_manage_metadata', 
-      'business_management'
+      'business_management',
+      'whatsapp_business_management',
+      'whatsapp_business_messaging',
+      'pages_show_list'
     ].join(',');
     
-    // Facebook App ID - this will need to be replaced with your actual app ID
-    const appId = 'YOUR_FACEBOOK_APP_ID';
+    // Facebook App ID from your provided value
+    const appId = '501863326303161';
     
     // The URL to redirect back to after authentication
     const redirectUri = encodeURIComponent(window.location.origin + '/facebook-callback');
     
+    // Generate a random state for CSRF protection
+    const state = generateRandomState();
+    
+    // Store the state in localStorage to verify when the callback happens
+    localStorage.setItem('facebook_state', state);
+    
     // Construct the Facebook login URL with required parameters
-    const facebookLoginUrl = `https://www.facebook.com/v22.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&state=${generateRandomState()}&scope=${permissions}&response_type=code`;
+    const facebookLoginUrl = `https://www.facebook.com/v17.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&state=${state}&scope=${permissions}&response_type=code`;
 
     // Open Facebook login in a new window
     window.open(facebookLoginUrl, 'facebook_login', 'width=600,height=700');
@@ -100,46 +106,72 @@ const Index = () => {
     // Verify the origin to ensure it's from our popup
     if (event.origin !== window.location.origin) return;
 
-    // Get the code from the response
-    const { code } = event.data;
-    if (!code) return;
-
+    // Get the code and state from the response
+    const { code, state, error } = event.data;
+    
+    if (error) {
+      console.error("Facebook authentication error:", error);
+      setIsConnecting(false);
+      window.removeEventListener('message', handleFacebookCallback);
+      toast({
+        title: "Connection failed",
+        description: "Facebook authentication was canceled or failed.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Verify state to prevent CSRF attacks
+    const savedState = localStorage.getItem('facebook_state');
+    if (!code || !state || state !== savedState) {
+      console.error("Invalid state or missing code");
+      setIsConnecting(false);
+      window.removeEventListener('message', handleFacebookCallback);
+      toast({
+        title: "Connection failed",
+        description: "Authentication verification failed.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    localStorage.removeItem('facebook_state');
     setIsConnecting(false);
     window.removeEventListener('message', handleFacebookCallback);
 
-    // Exchange code for access token
+    // Exchange code for access token using your backend API
     try {
       console.log("Received authorization code:", code);
       
-      // This would typically be a server-side operation due to the need for client_secret
-      // For now, we'll simulate the request
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("No authentication token found");
+      }
       
-      // Normally, you'd send this to your backend:
-      const backendRequest = {
-        code,
-        userId: user?.id
-      };
-      console.log("Would send to backend:", backendRequest);
+      // Send the code to your backend API
+      const response = await fetch('https://testw-ndlu.onrender.com/api/facebook/callback', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          code,
+          redirectUri: window.location.origin + '/facebook-callback'
+        })
+      });
       
-      // Here you would normally call your backend API endpoint
-      // const response = await fetch('YOUR_BACKEND_API_ENDPOINT', {
-      //   method: 'POST',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //     'Authorization': `Bearer ${localStorage.getItem('token')}`
-      //   },
-      //   body: JSON.stringify(backendRequest)
-      // });
-      // const data = await response.json();
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to connect to Facebook");
+      }
       
-      // Instead, we'll simulate a successful response
+      const data = await response.json();
+      
       toast({
         title: "Connected to Facebook",
         description: "Your Facebook business account has been successfully connected.",
       });
-      
-      // In a real implementation, you would save the WABA ID, phone ID, and access token
-      // received from your backend after it exchanges the code
       
       // Update our dashboard data to show as connected
       if (dashboardData) {
@@ -147,12 +179,30 @@ const Index = () => {
           ...dashboardData,
           connected: true
         });
+      } else {
+        // If dashboard data wasn't loaded yet, fetch it again
+        const token = localStorage.getItem("token");
+        if (token) {
+          const dashResponse = await fetch('https://testw-ndlu.onrender.com/api/dashboard', {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          
+          if (dashResponse.ok) {
+            const result = await dashResponse.json();
+            if (result.success && result.data) {
+              setDashboardData(result.data);
+            }
+          }
+        }
       }
     } catch (error) {
       console.error("Error connecting to Facebook:", error);
       toast({
         title: "Connection failed",
-        description: "Failed to connect to Facebook. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to connect to Facebook. Please try again.",
         variant: "destructive",
       });
     }
