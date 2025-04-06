@@ -101,6 +101,17 @@ export const getSocket = () => {
   return socket;
 };
 
+export const joinRoom = (wabaAccountId: number | string) => {
+  if (socket && socket.connected) {
+    console.log(`Joining room for WABA account ID: ${wabaAccountId}`);
+    socket.emit("join_room", wabaAccountId);
+    return true;
+  } else {
+    console.error("Cannot join room: Socket not connected");
+    return false;
+  }
+};
+
 export const disconnectSocket = () => {
   if (socket) {
     console.log("Disconnecting socket:", socket.id);

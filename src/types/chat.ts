@@ -25,3 +25,10 @@ export interface MessageSendResponse {
   data?: Message;
   error?: string;
 }
+
+export interface WhatsAppSendMessageRequest {
+  fromPhoneNumber?: string;
+  recipient: string;
+  messageType: "text" | "template" | "image" | "document" | "video";
+  messageData: string | object;
+}
