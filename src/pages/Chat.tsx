@@ -7,8 +7,8 @@ import { Search, Send, Check, CheckCheck, Phone, User } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Conversation, Message, MessageSendResponse } from "@/types/chat";
-import { initializeSocket, disconnectSocket, getSocket } from "@/utils/socket";
+import { Conversation, Message, MessageSendResponse, WhatsAppSendMessageRequest } from "@/types/chat";
+import { initializeSocket, disconnectSocket, getSocket, joinRoom } from "@/utils/socket";
 import { format } from "date-fns";
 
 // Function to fetch conversations
@@ -39,23 +39,34 @@ const fetchConversations = async (): Promise<Conversation[]> => {
 // Function to send a message
 const sendMessage = async ({ 
   conversationId, 
-  content 
+  content, 
+  recipientPhone 
 }: { 
-  conversationId: number; 
-  content: string 
+  conversationId: number;
+  content: string;
+  recipientPhone: string;
 }): Promise<MessageSendResponse> => {
   console.log(`Sending message to conversation ${conversationId}:`, content);
   const token = localStorage.getItem("token");
   if (!token) throw new Error("No authentication token found");
 
   try {
-    const response = await fetch(`https://testw-ndlu.onrender.com/api/conversations/${conversationId}/messages`, {
+    // Create the WhatsApp message request
+    const whatsAppRequest: WhatsAppSendMessageRequest = {
+      recipient: recipientPhone,
+      messageType: "text",
+      messageData: content
+    };
+
+    console.log("Sending WhatsApp message with payload:", whatsAppRequest);
+
+    // Send the WhatsApp message
+    const response = await fetch(`https://testw-ndlu.onrender.com/whatsapp/send`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ content, message_type: "text" }),
+      body: JSON.stringify(whatsAppRequest),
     });
 
     const data = await response.json();
@@ -99,6 +110,7 @@ const Chat = () => {
   const [messageInput, setMessageInput] = useState("");
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [socketConnected, setSocketConnected] = useState(false);
 
   // Fetch conversations data
   const { 
@@ -179,6 +191,13 @@ const Chat = () => {
       }
     });
 
+    setSocketConnected(!!socket && socket.connected);
+
+    // Join room if conversation is selected
+    if (selectedConversation) {
+      joinRoom(selectedConversation.waba_account_id);
+    }
+
     // Every 30 seconds, check if socket is still connected
     const intervalId = setInterval(() => {
       const currentSocket = getSocket();
@@ -187,6 +206,8 @@ const Chat = () => {
         connected: currentSocket?.connected,
         id: currentSocket?.id
       });
+      
+      setSocketConnected(!!currentSocket && currentSocket.connected);
       
       if (currentSocket && !currentSocket.connected) {
         console.log("Socket disconnected, attempting to reconnect...");
@@ -203,6 +224,14 @@ const Chat = () => {
     };
   }, [refetchConversations]);
 
+  // Join room when conversation is selected
+  useEffect(() => {
+    if (selectedConversation) {
+      console.log(`Joining room for WABA account ${selectedConversation.waba_account_id}`);
+      joinRoom(selectedConversation.waba_account_id);
+    }
+  }, [selectedConversation]);
+
   // Auto-select the first conversation when data loads
   useEffect(() => {
     if (conversations && conversations.length > 0 && !selectedConversation) {
@@ -217,12 +246,14 @@ const Chat = () => {
     
     console.log("Handling send message:", {
       conversationId: selectedConversation.id,
-      content: messageInput
+      content: messageInput,
+      recipientPhone: selectedConversation.customer_phone
     });
     
     sendMessageMutation.mutate({
       conversationId: selectedConversation.id,
       content: messageInput,
+      recipientPhone: selectedConversation.customer_phone
     });
     
     setMessageInput("");
@@ -272,6 +303,14 @@ const Chat = () => {
 
   return (
     <div className="h-[calc(100vh-2rem)] flex gap-4">
+      {/* Socket Connection Indicator */}
+      <div className={`absolute top-2 right-2 flex items-center gap-1 px-2 py-1 rounded-md text-xs ${
+        socketConnected ? "bg-green-100 text-green-600" : "bg-red-100 text-red-600"
+      }`}>
+        <div className={`w-2 h-2 rounded-full ${socketConnected ? "bg-green-600" : "bg-red-600"}`}></div>
+        {socketConnected ? "Socket Connected" : "Socket Disconnected"}
+      </div>
+      
       {/* Conversations List */}
       <Card className="w-80 p-4 flex flex-col">
         <div className="mb-4">

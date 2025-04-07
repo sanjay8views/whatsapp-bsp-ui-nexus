@@ -30,7 +30,11 @@ export const initializeSocket = (handlers: SocketHandlers) => {
   }
 
   console.log("Initializing new socket connection...");
-  socket = io("https://testw-ndlu.onrender.com");
+  socket = io("https://testw-ndlu.onrender.com", {
+    transports: ['websocket'],
+    reconnectionAttempts: 5,
+    reconnectionDelay: 1000
+  });
 
   socket.on("connect", () => {
     console.log("✅ Connected to WebSocket server with ID:", socket.id);
