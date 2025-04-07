@@ -27,7 +27,7 @@ export interface MessageSendResponse {
 }
 
 export interface WhatsAppSendMessageRequest {
-  fromPhoneNumber?: string;
+  fromPhoneNumber: string;
   recipient: string;
   messageType: "text" | "template" | "image" | "document" | "video";
   messageData: string | object;

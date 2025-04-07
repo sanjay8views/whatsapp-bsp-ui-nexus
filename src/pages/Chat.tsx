@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -53,6 +52,7 @@ const sendMessage = async ({
   try {
     // Create the WhatsApp message request
     const whatsAppRequest: WhatsAppSendMessageRequest = {
+      fromPhoneNumber: "+1 555 636 1663",
       recipient: recipientPhone,
       messageType: "text",
       messageData: content
