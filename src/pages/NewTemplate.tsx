@@ -1,40 +1,70 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { createTemplate, fetchDashboardData } from "@/services/api";
+import { TemplateCreateRequest, TemplateButton, TemplateVariable } from "@/types/chat";
+import { useNavigate } from "react-router-dom";
 
-interface TemplateVariable {
+interface LocalTemplateVariable {
   id: string;
   placeholder: string;
   example: string;
 }
 
-interface TemplateButton {
-  type: "quickReply" | "url" | "call";
+interface LocalTemplateButton {
+  type: "url" | "call" | "quick_reply";
   text: string;
   value?: string;
 }
 
 const NewTemplate = () => {
+  const { toast } = useToast();
+  const navigate = useNavigate();
+  
+  const { data: dashboardData } = useQuery({
+    queryKey: ["dashboard"],
+    queryFn: fetchDashboardData,
+  });
+  
   const [template, setTemplate] = useState({
     name: "",
-    language: "en_US",
+    language: "en",
     category: "MARKETING",
     header: "",
     body: "",
     footer: "",
-    variables: [] as TemplateVariable[],
-    buttons: [] as TemplateButton[]
+    variables: [] as LocalTemplateVariable[],
+    buttons: [] as LocalTemplateButton[]
   });
 
-  const [newButton, setNewButton] = useState<TemplateButton>({
-    type: "quickReply",
+  const [newButton, setNewButton] = useState<LocalTemplateButton>({
+    type: "quick_reply",
     text: "",
     value: ""
+  });
+
+  const createTemplateMutation = useMutation({
+    mutationFn: createTemplate,
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Template created successfully",
+      });
+      navigate("/templates");
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to create template",
+        variant: "destructive",
+      });
+    }
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -43,7 +73,7 @@ const NewTemplate = () => {
   };
 
   const addVariable = () => {
-    const newVariable: TemplateVariable = {
+    const newVariable: LocalTemplateVariable = {
       id: Date.now().toString(),
       placeholder: "",
       example: ""
@@ -61,7 +91,7 @@ const NewTemplate = () => {
     }));
   };
 
-  const updateVariable = (id: string, field: keyof TemplateVariable, value: string) => {
+  const updateVariable = (id: string, field: keyof LocalTemplateVariable, value: string) => {
     setTemplate(prev => ({
       ...prev,
       variables: prev.variables.map(v => 
@@ -108,7 +138,7 @@ const NewTemplate = () => {
         ...prev,
         buttons: [...prev.buttons, { ...newButton }]
       }));
-      setNewButton({ type: "quickReply", text: "", value: "" });
+      setNewButton({ type: "quick_reply", text: "", value: "" });
     }
   };
 
@@ -121,29 +151,52 @@ const NewTemplate = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const formattedTemplate = {
+    
+    if (!dashboardData?.data?.phone_number) {
+      toast({
+        title: "Error",
+        description: "Could not retrieve phone number. Please refresh the page.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    const formattedVariables: TemplateVariable[] = template.variables.map((variable, index) => ({
+      variable_name: variable.placeholder || `Variable ${index + 1}`,
+      example_value: variable.example || "",
+      order_index: index
+    }));
+    
+    const formattedButtons: TemplateButton[] = template.buttons.map((button, index) => {
+      const base = {
+        button_type: button.type === "quick_reply" ? "quick_reply" : button.type,
+        button_text: button.text,
+        order_index: index
+      };
+      
+      if (button.type === "url" || button.type === "call") {
+        return {
+          ...base,
+          button_value: button.value || ""
+        };
+      }
+      
+      return base;
+    });
+    
+    const templateRequest: TemplateCreateRequest = {
+      phone_number: dashboardData.data.phone_number,
       name: template.name,
       language: template.language,
       category: template.category,
-      components: [
-        ...(template.header ? [{ type: "HEADER", text: template.header }] : []),
-        { type: "BODY", text: template.body },
-        ...(template.footer ? [{ type: "FOOTER", text: template.footer }] : []),
-        ...(template.buttons.length > 0 ? [{
-          type: "BUTTONS",
-          buttons: template.buttons.map(button => {
-            if (button.type === "quickReply") {
-              return { type: "QUICK_REPLY", text: button.text };
-            } else if (button.type === "url") {
-              return { type: "URL", text: button.text, url: button.value };
-            } else {
-              return { type: "PHONE_NUMBER", text: button.text, phone_number: button.value };
-            }
-          })
-        }] : [])
-      ]
+      body_text: template.body,
+      ...(template.header && { header_text: template.header }),
+      ...(template.footer && { footer_text: template.footer }),
+      ...(formattedVariables.length > 0 && { variables: formattedVariables }),
+      ...(formattedButtons.length > 0 && { buttons: formattedButtons }),
     };
-    console.log("Template data:", formattedTemplate);
+    
+    createTemplateMutation.mutate(templateRequest);
   };
 
   const replaceVariables = (text: string) => {
@@ -190,11 +243,11 @@ const NewTemplate = () => {
                     value={template.language}
                     onChange={handleChange}
                   >
+                    <option value="en">English</option>
                     <option value="en_US">English (US)</option>
-                    <option value="es_LA">Spanish (LATAM)</option>
+                    <option value="es">Spanish</option>
                     <option value="pt_BR">Portuguese (Brazil)</option>
-                    <option value="fr_FR">French</option>
-                    <option value="de_DE">German</option>
+                    <option value="fr">French</option>
                   </select>
                 </div>
 
@@ -207,8 +260,8 @@ const NewTemplate = () => {
                     onChange={handleChange}
                   >
                     <option value="MARKETING">Marketing</option>
-                    <option value="AUTHENTICATION">Authentication</option>
                     <option value="UTILITY">Utility</option>
+                    <option value="AUTHENTICATION">Authentication</option>
                   </select>
                 </div>
               </div>
@@ -315,7 +368,7 @@ const NewTemplate = () => {
                     {template.buttons.map((button, index) => (
                       <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
                         <div>
-                          <span className="font-medium">{button.type === "quickReply" ? "Quick Reply" : 
+                          <span className="font-medium">{button.type === "quick_reply" ? "Quick Reply" : 
                             button.type === "url" ? "URL" : "Call"}</span>: {button.text}
                           {(button.type === "url" || button.type === "call") && button.value && (
                             <span className="text-xs text-muted-foreground block">
@@ -347,7 +400,7 @@ const NewTemplate = () => {
                           value={newButton.type}
                           onChange={handleButtonInputChange}
                         >
-                          <option value="quickReply">Quick Reply</option>
+                          <option value="quick_reply">Quick Reply</option>
                           <option value="url">URL</option>
                           <option value="call">Call</option>
                         </select>
@@ -391,7 +444,20 @@ const NewTemplate = () => {
                 )}
               </div>
 
-              <Button type="submit" className="w-full">Save Template</Button>
+              <Button 
+                type="submit" 
+                className="w-full"
+                disabled={createTemplateMutation.isPending}
+              >
+                {createTemplateMutation.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  "Save Template"
+                )}
+              </Button>
             </form>
           </CardContent>
         </Card>

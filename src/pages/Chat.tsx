@@ -9,8 +9,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Conversation, Message, MessageSendResponse, WhatsAppSendMessageRequest } from "@/types/chat";
 import { initializeSocket, disconnectSocket, getSocket, joinRoom } from "@/utils/socket";
 import { format } from "date-fns";
+import { createAuthHeaders, fetchDashboardData } from "@/services/api";
 
-// Function to fetch conversations
+// Function to fetch conversations with auth header
 const fetchConversations = async (): Promise<Conversation[]> => {
   console.log("Fetching conversations...");
   const token = localStorage.getItem("token");
@@ -18,10 +19,7 @@ const fetchConversations = async (): Promise<Conversation[]> => {
 
   const response = await fetch("https://testw-ndlu.onrender.com/api/conversations", {
     method: "GET",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
+    headers: createAuthHeaders(),
   });
 
   if (!response.ok) {
@@ -35,24 +33,24 @@ const fetchConversations = async (): Promise<Conversation[]> => {
   return data;
 };
 
-// Function to send a message
+// Function to send a message with auth header
 const sendMessage = async ({ 
   conversationId, 
   content, 
-  recipientPhone 
+  recipientPhone,
+  fromPhoneNumber 
 }: { 
   conversationId: number;
   content: string;
   recipientPhone: string;
+  fromPhoneNumber: string;
 }): Promise<MessageSendResponse> => {
   console.log(`Sending message to conversation ${conversationId}:`, content);
-  const token = localStorage.getItem("token");
-  if (!token) throw new Error("No authentication token found");
-
+  
   try {
     // Create the WhatsApp message request
     const whatsAppRequest: WhatsAppSendMessageRequest = {
-      fromPhoneNumber: "+1 555 636 1663",
+      fromPhoneNumber: fromPhoneNumber,
       recipient: recipientPhone,
       messageType: "text",
       messageData: content
@@ -60,12 +58,10 @@ const sendMessage = async ({
 
     console.log("Sending WhatsApp message with payload:", whatsAppRequest);
 
-    // Send the WhatsApp message
+    // Send the WhatsApp message with auth headers
     const response = await fetch(`https://testw-ndlu.onrender.com/whatsapp/send`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: createAuthHeaders(),
       body: JSON.stringify(whatsAppRequest),
     });
 
@@ -111,6 +107,12 @@ const Chat = () => {
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [socketConnected, setSocketConnected] = useState(false);
+
+  // Fetch dashboard data for the phone number
+  const { data: dashboardData } = useQuery({
+    queryKey: ["dashboard"],
+    queryFn: fetchDashboardData,
+  });
 
   // Fetch conversations data
   const { 
@@ -242,18 +244,29 @@ const Chat = () => {
 
   // Function to handle sending a message
   const handleSendMessage = () => {
-    if (!messageInput.trim() || !selectedConversation) return;
+    if (!messageInput.trim() || !selectedConversation || !dashboardData?.data?.phone_number) {
+      if (!dashboardData?.data?.phone_number) {
+        toast({
+          title: "Error",
+          description: "Could not retrieve sender phone number",
+          variant: "destructive",
+        });
+      }
+      return;
+    }
     
     console.log("Handling send message:", {
       conversationId: selectedConversation.id,
       content: messageInput,
-      recipientPhone: selectedConversation.customer_phone
+      recipientPhone: selectedConversation.customer_phone,
+      fromPhoneNumber: dashboardData.data.phone_number
     });
     
     sendMessageMutation.mutate({
       conversationId: selectedConversation.id,
       content: messageInput,
-      recipientPhone: selectedConversation.customer_phone
+      recipientPhone: selectedConversation.customer_phone,
+      fromPhoneNumber: dashboardData.data.phone_number
     });
     
     setMessageInput("");

@@ -1,16 +1,44 @@
 
+import { useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link } from "react-router-dom";
 import { PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useQuery } from "@tanstack/react-query";
+import { fetchTemplates } from "@/services/api";
+import { Template } from "@/types/chat";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 
 const Templates = () => {
-  // Placeholder data for templates
-  const templates = [
-    { id: 1, name: "Welcome Message", status: "Approved" },
-    { id: 2, name: "Order Confirmation", status: "Pending" },
-    { id: 3, name: "Support Ticket", status: "In Review" }
-  ];
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["templates"],
+    queryFn: fetchTemplates,
+  });
+
+  const getStatusBadgeClass = (status: string) => {
+    switch (status.toLowerCase()) {
+      case "approved":
+        return "bg-green-100 text-green-800 hover:bg-green-100";
+      case "pending":
+        return "bg-amber-100 text-amber-800 hover:bg-amber-100";
+      case "rejected":
+        return "bg-red-100 text-red-800 hover:bg-red-100";
+      default:
+        return "bg-gray-100 text-gray-800 hover:bg-gray-100";
+    }
+  };
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-3xl font-bold">Message Templates</h1>
+        <div className="p-4 border rounded-lg bg-red-50 text-red-700">
+          Error loading templates: {error instanceof Error ? error.message : "Unknown error"}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -24,27 +52,45 @@ const Templates = () => {
         </Link>
       </div>
 
-      <div className="templates-grid">
-        {templates.map((template) => (
-          <Card key={template.id}>
-            <CardHeader>
-              <CardTitle className="text-xl">{template.name}</CardTitle>
-              <CardDescription>Status: {template.status}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex justify-end space-x-2">
-                <span className={`status-badge ${
-                  template.status === 'Approved' ? 'status-approved' : 
-                  template.status === 'Pending' ? 'status-pending' : 
-                  'status-review'
-                }`}>
-                  {template.status}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[...Array(6)].map((_, index) => (
+            <Card key={index}>
+              <CardHeader>
+                <Skeleton className="h-6 w-48" />
+                <Skeleton className="h-4 w-32 mt-2" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-4 w-20" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {data?.templates.map((template: Template) => (
+            <Card key={template.id}>
+              <CardHeader>
+                <CardTitle className="text-xl">{template.name}</CardTitle>
+                <CardDescription>Category: {template.category}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex justify-end space-x-2">
+                  <Badge variant="outline" className={getStatusBadgeClass(template.status)}>
+                    {template.status}
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {data?.templates && data.templates.length === 0 && (
+        <div className="text-center p-8 border rounded-lg">
+          <p className="text-gray-500">No templates found. Create your first template!</p>
+        </div>
+      )}
     </div>
   );
 };
