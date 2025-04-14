@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Conversation, Message, MessageSendResponse, WhatsAppSendMessageRequest } from "@/types/chat";
 import { initializeSocket, disconnectSocket, getSocket, joinRoom } from "@/utils/socket";
-import { format, parseISO, add } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { createAuthHeaders, fetchDashboardData } from "@/services/api";
 
 const fetchConversations = async (): Promise<Conversation[]> => {
@@ -97,11 +97,11 @@ const MessageStatus = ({ status }: { status: Message["status"] }) => {
 
 const formatISTTimestamp = (timestamp: string): string => {
   try {
+    if (!timestamp) return "";
+    
     const date = parseISO(timestamp);
     
-    const istDate = add(date, { hours: 5, minutes: 30 });
-    
-    return format(istDate, "HH:mm");
+    return format(date, "HH:mm");
   } catch (error) {
     console.error("Error formatting timestamp:", error, timestamp);
     return "Invalid date";
