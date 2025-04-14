@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -167,21 +168,26 @@ const NewTemplate = () => {
       order_index: index
     }));
     
+    // Fixed: Properly type the button_type to match TemplateButton interface
     const formattedButtons: TemplateButton[] = template.buttons.map((button, index) => {
-      const base = {
-        button_type: button.type === "quick_reply" ? "quick_reply" : button.type,
+      // Ensure button_type is properly typed as "url" | "call" | "quick_reply"
+      const buttonType = button.type as "url" | "call" | "quick_reply";
+      
+      const baseButton: TemplateButton = {
+        button_type: buttonType,
         button_text: button.text,
         order_index: index
       };
       
+      // Add button_value only for url or call button types
       if (button.type === "url" || button.type === "call") {
         return {
-          ...base,
+          ...baseButton,
           button_value: button.value || ""
         };
       }
       
-      return base;
+      return baseButton;
     });
     
     const templateRequest: TemplateCreateRequest = {
