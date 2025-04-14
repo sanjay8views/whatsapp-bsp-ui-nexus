@@ -10,6 +10,7 @@ import { Conversation, Message, MessageSendResponse, WhatsAppSendMessageRequest 
 import { initializeSocket, disconnectSocket, getSocket, joinRoom } from "@/utils/socket";
 import { format, parseISO } from "date-fns";
 import { createAuthHeaders, fetchDashboardData } from "@/services/api";
+import { formatMessageTime } from "@/utils/date-utils";
 
 const fetchConversations = async (): Promise<Conversation[]> => {
   console.log("Fetching conversations...");
@@ -93,19 +94,6 @@ const MessageStatus = ({ status }: { status: Message["status"] }) => {
     return <span className="text-xs text-red-500">Failed</span>;
   }
   return null;
-};
-
-const formatISTTimestamp = (timestamp: string): string => {
-  try {
-    if (!timestamp) return "";
-    
-    const date = parseISO(timestamp);
-    
-    return format(date, "HH:mm");
-  } catch (error) {
-    console.error("Error formatting timestamp:", error, timestamp);
-    return "Invalid date";
-  }
 };
 
 const Chat = () => {
@@ -333,7 +321,7 @@ const Chat = () => {
                   <div className="text-sm text-gray-500 flex justify-between">
                     <span className="truncate max-w-[120px]">{conversation.last_message}</span>
                     <span className="text-xs">
-                      {formatISTTimestamp(conversation.last_message_time)}
+                      {formatMessageTime(conversation.last_message_time)}
                     </span>
                   </div>
                 </div>
@@ -372,7 +360,7 @@ const Chat = () => {
                   <div className={`text-xs mt-1 flex items-center justify-end gap-1 ${
                     message.direction === 'outbound' ? 'text-white/70' : 'text-gray-500'
                   }`}>
-                    {formatISTTimestamp(message.created_at)}
+                    {formatMessageTime(message.created_at)}
                     {message.direction === 'outbound' && <MessageStatus status={message.status} />}
                   </div>
                 </div>
