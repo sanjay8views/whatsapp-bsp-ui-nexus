@@ -8,10 +8,9 @@ import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Conversation, Message, MessageSendResponse, WhatsAppSendMessageRequest } from "@/types/chat";
 import { initializeSocket, disconnectSocket, getSocket, joinRoom } from "@/utils/socket";
-import { format } from "date-fns";
+import { format, parseISO, add } from "date-fns";
 import { createAuthHeaders, fetchDashboardData } from "@/services/api";
 
-// Function to fetch conversations with auth header
 const fetchConversations = async (): Promise<Conversation[]> => {
   console.log("Fetching conversations...");
   const token = localStorage.getItem("token");
@@ -33,7 +32,6 @@ const fetchConversations = async (): Promise<Conversation[]> => {
   return data;
 };
 
-// Function to send a message with auth header
 const sendMessage = async ({ 
   conversationId, 
   content, 
@@ -48,7 +46,6 @@ const sendMessage = async ({
   console.log(`Sending message to conversation ${conversationId}:`, content);
   
   try {
-    // Create the WhatsApp message request
     const whatsAppRequest: WhatsAppSendMessageRequest = {
       fromPhoneNumber: fromPhoneNumber,
       recipient: recipientPhone,
@@ -58,7 +55,6 @@ const sendMessage = async ({
 
     console.log("Sending WhatsApp message with payload:", whatsAppRequest);
 
-    // Send the WhatsApp message with auth headers
     const response = await fetch(`https://testw-ndlu.onrender.com/whatsapp/send`, {
       method: "POST",
       headers: createAuthHeaders(),
@@ -86,7 +82,6 @@ const sendMessage = async ({
   }
 };
 
-// Component to render message status indicators
 const MessageStatus = ({ status }: { status: Message["status"] }) => {
   if (status === "sent") {
     return <Check className="h-3 w-3 text-gray-400" />;
@@ -100,6 +95,19 @@ const MessageStatus = ({ status }: { status: Message["status"] }) => {
   return null;
 };
 
+const formatISTTimestamp = (timestamp: string): string => {
+  try {
+    const date = parseISO(timestamp);
+    
+    const istDate = add(date, { hours: 5, minutes: 30 });
+    
+    return format(istDate, "HH:mm");
+  } catch (error) {
+    console.error("Error formatting timestamp:", error, timestamp);
+    return "Invalid date";
+  }
+};
+
 const Chat = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -108,13 +116,11 @@ const Chat = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [socketConnected, setSocketConnected] = useState(false);
 
-  // Fetch dashboard data for the phone number
   const { data: dashboardData } = useQuery({
     queryKey: ["dashboard"],
     queryFn: fetchDashboardData,
   });
 
-  // Fetch conversations data
   const { 
     data: conversations, 
     isLoading, 
@@ -125,18 +131,14 @@ const Chat = () => {
     queryFn: fetchConversations,
   });
 
-  // Send message mutation
   const sendMessageMutation = useMutation({
     mutationFn: sendMessage,
     onSuccess: (response) => {
       if (response.success) {
         console.log("Message sent successfully in mutation:", response.data);
-        // Refetch conversations to update with the new message
         queryClient.invalidateQueries({ queryKey: ["conversations"] });
         
-        // Optionally add the message to the UI immediately
         if (selectedConversation && response.data) {
-          // This is a quick update before the refetch happens
           const updatedConversation = {
             ...selectedConversation,
             messages: [...selectedConversation.messages, response.data],
@@ -164,43 +166,36 @@ const Chat = () => {
     },
   });
 
-  // Scroll to bottom of messages when they update
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [selectedConversation?.messages]);
 
-  // Set up socket connection for real-time updates
   useEffect(() => {
     console.log("Setting up socket connection...");
     
     const socket = initializeSocket({
       onNewMessage: (message) => {
         console.log("Socket received new WhatsApp message:", message);
-        // Refetch conversation data when a new message comes in
         refetchConversations();
       },
       onStatusUpdate: (status) => {
         console.log("Socket received message status update:", status);
-        // Refetch conversation data when a message status changes
         refetchConversations();
       },
       onCustomEvent: (data) => {
         console.log("Socket received custom event data:", data);
-        // Handle any custom events from the server
         refetchConversations();
       }
     });
 
     setSocketConnected(!!socket && socket.connected);
 
-    // Join room if conversation is selected
     if (selectedConversation) {
       joinRoom(selectedConversation.waba_account_id);
     }
 
-    // Every 30 seconds, check if socket is still connected
     const intervalId = setInterval(() => {
       const currentSocket = getSocket();
       console.log("Socket connection check:", {
@@ -213,20 +208,16 @@ const Chat = () => {
       
       if (currentSocket && !currentSocket.connected) {
         console.log("Socket disconnected, attempting to reconnect...");
-        // Socket exists but not connected, attempt reconnect
         currentSocket.connect();
       }
     }, 30000);
 
-    // Clean up socket on unmount
     return () => {
       console.log("Component unmounting, cleaning up socket connection...");
       clearInterval(intervalId);
-      disconnectSocket();
     };
   }, [refetchConversations]);
 
-  // Join room when conversation is selected
   useEffect(() => {
     if (selectedConversation) {
       console.log(`Joining room for WABA account ${selectedConversation.waba_account_id}`);
@@ -234,7 +225,6 @@ const Chat = () => {
     }
   }, [selectedConversation]);
 
-  // Auto-select the first conversation when data loads
   useEffect(() => {
     if (conversations && conversations.length > 0 && !selectedConversation) {
       console.log("Auto-selecting first conversation:", conversations[0].id);
@@ -242,7 +232,6 @@ const Chat = () => {
     }
   }, [conversations, selectedConversation]);
 
-  // Function to handle sending a message
   const handleSendMessage = () => {
     if (!messageInput.trim() || !selectedConversation || !dashboardData?.data?.phone_number) {
       if (!dashboardData?.data?.phone_number) {
@@ -272,7 +261,6 @@ const Chat = () => {
     setMessageInput("");
   };
 
-  // Handle pressing Enter key in the input field
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -280,9 +268,7 @@ const Chat = () => {
     }
   };
 
-  // Format phone number for display
   const formatPhoneNumber = (phone: string) => {
-    // Format starts with country code
     if (phone.startsWith("91")) {
       return `+${phone.substring(0, 2)} ${phone.substring(2)}`;
     }
@@ -316,7 +302,6 @@ const Chat = () => {
 
   return (
     <div className="h-[calc(100vh-2rem)] flex gap-4">
-      {/* Socket Connection Indicator */}
       <div className={`absolute top-2 right-2 flex items-center gap-1 px-2 py-1 rounded-md text-xs ${
         socketConnected ? "bg-green-100 text-green-600" : "bg-red-100 text-red-600"
       }`}>
@@ -324,7 +309,6 @@ const Chat = () => {
         {socketConnected ? "Socket Connected" : "Socket Disconnected"}
       </div>
       
-      {/* Conversations List */}
       <Card className="w-80 p-4 flex flex-col">
         <div className="mb-4">
           <div className="relative">
@@ -349,7 +333,7 @@ const Chat = () => {
                   <div className="text-sm text-gray-500 flex justify-between">
                     <span className="truncate max-w-[120px]">{conversation.last_message}</span>
                     <span className="text-xs">
-                      {format(new Date(conversation.last_message_time), "HH:mm")}
+                      {formatISTTimestamp(conversation.last_message_time)}
                     </span>
                   </div>
                 </div>
@@ -361,7 +345,6 @@ const Chat = () => {
         </ScrollArea>
       </Card>
 
-      {/* Chat Area */}
       <Card className="flex-1 flex flex-col">
         <div className="p-4 border-b">
           <h2 className="font-semibold">
@@ -371,7 +354,6 @@ const Chat = () => {
           </h2>
         </div>
         
-        {/* Messages container with ScrollArea for better scrolling */}
         <ScrollArea className="flex-1 p-4">
           <div className="space-y-4">
             {selectedConversation?.messages?.map((message) => (
@@ -390,7 +372,7 @@ const Chat = () => {
                   <div className={`text-xs mt-1 flex items-center justify-end gap-1 ${
                     message.direction === 'outbound' ? 'text-white/70' : 'text-gray-500'
                   }`}>
-                    {format(new Date(message.created_at), "HH:mm")}
+                    {formatISTTimestamp(message.created_at)}
                     {message.direction === 'outbound' && <MessageStatus status={message.status} />}
                   </div>
                 </div>
@@ -401,12 +383,10 @@ const Chat = () => {
                 Select a conversation to start chatting
               </div>
             )}
-            {/* Empty div for scrolling to bottom */}
             <div ref={messagesEndRef} />
           </div>
         </ScrollArea>
         
-        {/* Message input area */}
         <div className="p-4 border-t">
           <div className="flex gap-2">
             <Input 
@@ -427,7 +407,6 @@ const Chat = () => {
         </div>
       </Card>
 
-      {/* Customer Details Sidebar */}
       <Card className="w-80 p-4">
         <h3 className="font-semibold mb-4">Customer Details</h3>
         {selectedConversation ? (
@@ -451,11 +430,11 @@ const Chat = () => {
             </div>
             <div>
               <label className="text-sm text-gray-500">Conversation Started</label>
-              <p className="mt-1">{format(new Date(selectedConversation.created_at), "PPP")}</p>
+              <p className="mt-1">{format(parseISO(selectedConversation.created_at), "PPP")}</p>
             </div>
             <div>
               <label className="text-sm text-gray-500">Last Activity</label>
-              <p className="mt-1">{format(new Date(selectedConversation.updated_at), "PPP 'at' h:mm a")}</p>
+              <p className="mt-1">{format(parseISO(selectedConversation.updated_at), "PPP 'at' h:mm a")}</p>
             </div>
           </div>
         ) : (
