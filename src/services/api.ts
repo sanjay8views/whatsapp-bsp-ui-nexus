@@ -60,3 +60,22 @@ export const createTemplate = async (template: TemplateCreateRequest): Promise<a
 
   return await response.json();
 };
+
+// Handle Facebook callback
+export const handleFacebookAuth = async (code: string, redirectUri: string): Promise<any> => {
+  const response = await fetch(`${API_BASE_URL}/api/auth/facebook/callback`, {
+    method: "POST",
+    headers: createAuthHeaders(),
+    body: JSON.stringify({
+      code,
+      redirectUri
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.message || `Failed to authenticate with Facebook: ${response.status}`);
+  }
+
+  return await response.json();
+};

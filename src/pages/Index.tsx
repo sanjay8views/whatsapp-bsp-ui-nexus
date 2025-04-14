@@ -1,10 +1,10 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Phone, Wifi, Facebook } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { fetchDashboardData, handleFacebookAuth } from "@/services/api";
 
 interface DashboardData {
   phone_number: string;
@@ -21,26 +21,10 @@ const Index = () => {
 
   // Fetch dashboard data when component mounts
   useEffect(() => {
-    const fetchDashboardData = async () => {
+    const loadDashboardData = async () => {
       setIsLoading(true);
       try {
-        const token = localStorage.getItem("token");
-        if (!token) {
-          throw new Error("No authentication token found");
-        }
-
-        const response = await fetch('https://testw-ndlu.onrender.com/api/dashboard', {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch dashboard data: ${response.status}`);
-        }
-
-        const result = await response.json();
+        const result = await fetchDashboardData();
         console.log("Dashboard data:", result);
         
         if (result.success && result.data) {
@@ -60,7 +44,7 @@ const Index = () => {
       }
     };
 
-    fetchDashboardData();
+    loadDashboardData();
   }, [toast]);
 
   const connectToFacebook = () => {
@@ -143,30 +127,9 @@ const Index = () => {
     try {
       console.log("Received authorization code:", code);
       
-      const token = localStorage.getItem("token");
-      if (!token) {
-        throw new Error("No authentication token found");
-      }
-      
-      // Send the code to your backend API
-      const response = await fetch('https://testw-ndlu.onrender.com/api/facebook/callback', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          code,
-          redirectUri: window.location.origin + '/facebook-callback'
-        })
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to connect to Facebook");
-      }
-      
-      const data = await response.json();
+      // Using the updated API function to handle Facebook callback
+      const redirectUriDecoded = window.location.origin + '/facebook-callback';
+      const data = await handleFacebookAuth(code, redirectUriDecoded);
       
       toast({
         title: "Connected to Facebook",
@@ -181,21 +144,9 @@ const Index = () => {
         });
       } else {
         // If dashboard data wasn't loaded yet, fetch it again
-        const token = localStorage.getItem("token");
-        if (token) {
-          const dashResponse = await fetch('https://testw-ndlu.onrender.com/api/dashboard', {
-            method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          });
-          
-          if (dashResponse.ok) {
-            const result = await dashResponse.json();
-            if (result.success && result.data) {
-              setDashboardData(result.data);
-            }
-          }
+        const result = await fetchDashboardData();
+        if (result.success && result.data) {
+          setDashboardData(result.data);
         }
       }
     } catch (error) {
