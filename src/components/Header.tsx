@@ -32,7 +32,7 @@ const Header = () => {
       case '/settings':
         return 'Settings';
       default:
-        return 'WhatsApp BSP';
+        return 'Scale Dino';
     }
   };
 

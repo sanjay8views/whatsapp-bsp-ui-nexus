@@ -1,7 +1,7 @@
 
 import { DashboardData, TemplateResponse, TemplateCreateRequest } from "@/types/chat";
 
-const API_BASE_URL = "https://testw-ndlu.onrender.com";
+const API_BASE_URL = "https://api.8views.co";
 
 // Helper function to get the auth token
 export const getAuthToken = (): string | null => {

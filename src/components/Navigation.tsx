@@ -48,7 +48,13 @@ const Navigation = () => {
       <SidebarContent>
         <SidebarGroup>
           <div className="px-4 py-2">
-            <SidebarGroupLabel>WhatsApp BSP</SidebarGroupLabel>
+            <Link to="/">
+              <img 
+                src="https://media.scaledino.com/website/images/assets/images/global/scale-dino-logo.webp" 
+                alt="Scale Dino Logo" 
+                className="h-10 w-auto"
+              />
+            </Link>
           </div>
           <SidebarGroupContent>
             <SidebarMenu>
