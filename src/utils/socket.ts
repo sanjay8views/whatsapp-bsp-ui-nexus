@@ -1,6 +1,6 @@
-
 import { io, Socket } from "socket.io-client";
 import { Message } from "@/types/chat";
+import { API_CONFIG } from '@/config/api';
 
 interface WhatsAppMessage {
   id: number;
@@ -47,7 +47,7 @@ export const initializeSocket = (handlers: SocketHandlers) => {
   console.log("Initializing new socket connection...");
   
   // Create a new socket connection with connection parameters
-  socket = io("https://testw-ndlu.onrender.com", {
+  socket = io(API_CONFIG.BASE_URL, {
     transports: ['websocket'],
     reconnectionAttempts: 5,
     reconnectionDelay: 1000
