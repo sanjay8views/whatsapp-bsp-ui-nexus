@@ -1,6 +1,6 @@
-
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { API_CONFIG } from '@/config/api';
 
 interface User {
   id: string;
@@ -71,8 +71,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log("Attempting login with:", { email });
       
-      // Call the actual login API
-      const response = await fetch('https://testw-ndlu.onrender.com/api/auth/login', {
+      // Call the actual login API using the base URL from config
+      const response = await fetch(`${API_CONFIG.BASE_URL}/api/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -119,8 +119,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log("Attempting signup with:", { name, email });
       
-      // Call the actual signup API
-      const response = await fetch('https://testw-ndlu.onrender.com/api/auth/signup', {
+      // Call the actual signup API using the base URL from config
+      const response = await fetch(`${API_CONFIG.BASE_URL}/api/auth/signup`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
