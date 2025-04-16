@@ -11,13 +11,14 @@ import { initializeSocket, disconnectSocket, getSocket, joinRoom } from "@/utils
 import { format, parseISO } from "date-fns";
 import { createAuthHeaders, fetchDashboardData } from "@/services/api";
 import { formatMessageTime } from "@/utils/date-utils";
+import { API_CONFIG } from "@/config/api";
 
 const fetchConversations = async (): Promise<Conversation[]> => {
   console.log("Fetching conversations...");
   const token = localStorage.getItem("token");
   if (!token) throw new Error("No authentication token found");
 
-  const response = await fetch("https://testw-ndlu.onrender.com/api/conversations", {
+  const response = await fetch(`${API_CONFIG.BASE_URL}/api/conversations`, {
     method: "GET",
     headers: createAuthHeaders(),
   });
@@ -56,7 +57,7 @@ const sendMessage = async ({
 
     console.log("Sending WhatsApp message with payload:", whatsAppRequest);
 
-    const response = await fetch(`https://testw-ndlu.onrender.com/whatsapp/send`, {
+    const response = await fetch(`${API_CONFIG.BASE_URL}/whatsapp/send`, {
       method: "POST",
       headers: createAuthHeaders(),
       body: JSON.stringify(whatsAppRequest),
