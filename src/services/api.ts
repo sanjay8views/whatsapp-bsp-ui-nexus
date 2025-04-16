@@ -1,4 +1,8 @@
+
 import { API_CONFIG } from '@/config/api';
+
+// Import the required types
+import type { DashboardData, TemplateResponse, TemplateCreateRequest } from "@/types/chat";
 
 const API_BASE_URL = API_CONFIG.BASE_URL;
 
