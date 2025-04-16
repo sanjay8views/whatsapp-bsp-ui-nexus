@@ -1,7 +1,6 @@
+import { API_CONFIG } from '@/config/api';
 
-import { DashboardData, TemplateResponse, TemplateCreateRequest } from "@/types/chat";
-
-const API_BASE_URL = "https://api.8views.co";
+const API_BASE_URL = API_CONFIG.BASE_URL;
 
 // Helper function to get the auth token
 export const getAuthToken = (): string | null => {
