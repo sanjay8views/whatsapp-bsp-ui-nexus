@@ -1,5 +1,5 @@
 
-import { useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link } from "react-router-dom";
 import { PlusCircle } from "lucide-react";
@@ -9,8 +9,12 @@ import { fetchTemplates } from "@/services/api";
 import { Template } from "@/types/chat";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import TemplatePreviewDialog from "@/components/TemplatePreviewDialog";
 
 const Templates = () => {
+  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+
   const { data, isLoading, error } = useQuery({
     queryKey: ["templates"],
     queryFn: fetchTemplates,
@@ -27,6 +31,11 @@ const Templates = () => {
       default:
         return "bg-gray-100 text-gray-800 hover:bg-gray-100";
     }
+  };
+
+  const handleTemplateClick = (template: Template) => {
+    setSelectedTemplate(template);
+    setIsPreviewOpen(true);
   };
 
   if (error) {
@@ -69,7 +78,11 @@ const Templates = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {data?.templates.map((template: Template) => (
-            <Card key={template.id}>
+            <Card 
+              key={template.id} 
+              className="cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => handleTemplateClick(template)}
+            >
               <CardHeader>
                 <CardTitle className="text-xl">{template.name}</CardTitle>
                 <CardDescription>Category: {template.category}</CardDescription>
@@ -91,6 +104,12 @@ const Templates = () => {
           <p className="text-gray-500">No templates found. Create your first template!</p>
         </div>
       )}
+
+      <TemplatePreviewDialog
+        template={selectedTemplate}
+        isOpen={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
+      />
     </div>
   );
 };
